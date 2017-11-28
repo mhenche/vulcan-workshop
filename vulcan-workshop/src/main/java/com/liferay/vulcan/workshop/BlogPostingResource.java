@@ -27,9 +27,11 @@ import com.liferay.vulcan.pagination.Pagination;
 import com.liferay.vulcan.resource.CollectionResource;
 import com.liferay.vulcan.resource.Representor;
 import com.liferay.vulcan.resource.Routes;
+import com.liferay.vulcan.resource.ScopedCollectionResource;
 import com.liferay.vulcan.resource.builder.RoutesBuilder;
 import com.liferay.vulcan.resource.identifier.LongIdentifier;
-import com.liferay.vulcan.resource.identifier.RootIdentifier;
+import com.liferay.vulcan.sample.liferay.portal.website.WebSite;
+import com.liferay.vulcan.sample.liferay.portal.website.WebSiteService;
 
 import java.util.List;
 import java.util.Optional;
@@ -46,7 +48,7 @@ import org.osgi.service.component.annotations.Reference;
  */
 @Component(immediate = true, service = CollectionResource.class)
 public class BlogPostingResource
-	implements CollectionResource<BlogsEntry, LongIdentifier> {
+	implements ScopedCollectionResource<BlogsEntry, LongIdentifier> {
 
 	@Override
 	public Representor<BlogsEntry, LongIdentifier> buildRepresentor(
@@ -56,6 +58,10 @@ public class BlogPostingResource
 			"BlogPosting"
 		).identifier(
 			blogsEntry -> blogsEntry::getEntryId
+		).addBidirectionalModel(
+			"webSite", "blogs", WebSite.class,
+			blogsEntry -> _webSiteService.getWebSite(blogsEntry.getGroupId()),
+			WebSite::getWebSiteLongIdentifier
 		).addDate(
 			"createDate", BlogsEntry::getCreateDate
 		).addDate(
@@ -91,7 +97,7 @@ public class BlogPostingResource
 		RoutesBuilder<BlogsEntry, LongIdentifier> routesBuilder) {
 
 		return routesBuilder.addCollectionPageGetter(
-			this::_getPageItems, RootIdentifier.class
+			this::_getPageItems, LongIdentifier.class
 		).addCollectionPageItemGetter(
 			this::_getBlogsEntry
 		).build();
@@ -115,20 +121,21 @@ public class BlogPostingResource
 	}
 
 	private PageItems<BlogsEntry> _getPageItems(
-		Pagination pagination, RootIdentifier rootIdentifier) {
+		Pagination pagination, LongIdentifier webSiteLongIdentifier) {
 
 		List<BlogsEntry> blogsEntries;
 
 		try {
 			blogsEntries = _blogsService.getGroupEntries(
-				20143, 0, pagination.getStartPosition(),
+				webSiteLongIdentifier.getId(), 0, pagination.getStartPosition(),
 				pagination.getEndPosition());
 		}
 		catch (SecurityException se) {
 			throw new NotAuthorizedException(se);
 		}
 
-		int count = _blogsService.getGroupEntriesCount(20143, 0);
+		int count = _blogsService.getGroupEntriesCount(
+			webSiteLongIdentifier.getId(), 0);
 
 		return new PageItems<>(blogsEntries, count);
 	}
@@ -152,5 +159,8 @@ public class BlogPostingResource
 
 	@Reference
 	private UserService _userService;
+
+	@Reference
+	private WebSiteService _webSiteService;
 
 }
