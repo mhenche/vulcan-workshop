@@ -16,6 +16,11 @@ package com.liferay.vulcan.workshop;
 
 import com.liferay.blogs.kernel.model.BlogsEntry;
 import com.liferay.blogs.kernel.service.BlogsEntryService;
+import com.liferay.portal.kernel.exception.NoSuchUserException;
+import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.model.User;
+import com.liferay.portal.kernel.security.auth.PrincipalException;
+import com.liferay.portal.kernel.service.UserService;
 import com.liferay.vulcan.pagination.PageItems;
 import com.liferay.vulcan.pagination.Pagination;
 import com.liferay.vulcan.resource.CollectionResource;
@@ -26,8 +31,11 @@ import com.liferay.vulcan.resource.identifier.LongIdentifier;
 import com.liferay.vulcan.resource.identifier.RootIdentifier;
 
 import java.util.List;
+import java.util.Optional;
 
 import javax.ws.rs.NotAuthorizedException;
+import javax.ws.rs.NotFoundException;
+import javax.ws.rs.ServerErrorException;
 
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
@@ -47,6 +55,28 @@ public class BlogPostingResource
 			"BlogPosting"
 		).identifier(
 			blogsEntry -> blogsEntry::getEntryId
+		).addDate(
+			"createDate", BlogsEntry::getCreateDate
+		).addDate(
+			"displayDate", BlogsEntry::getDisplayDate
+		).addDate(
+			"modifiedDate", BlogsEntry::getModifiedDate
+		).addDate(
+			"publishedDate", BlogsEntry::getLastPublishDate
+		).addEmbeddedModel(
+			"creator", User.class, this::_getUserOptional
+		).addLink(
+			"license", "https://creativecommons.org/licenses/by/4.0"
+		).addString(
+			"alternativeHeadline", BlogsEntry::getSubtitle
+		).addString(
+			"articleBody", BlogsEntry::getContent
+		).addString(
+			"description", BlogsEntry::getDescription
+		).addString(
+			"fileFormat", blogsEntry -> "text/html"
+		).addString(
+			"headline", BlogsEntry::getTitle
 		).build();
 	}
 
@@ -83,7 +113,24 @@ public class BlogPostingResource
 		return new PageItems<>(blogsEntries, count);
 	}
 
+	private Optional<User> _getUserOptional(BlogsEntry blogsEntry) {
+		try {
+			return Optional.ofNullable(
+				_userService.getUserById(blogsEntry.getUserId()));
+		}
+		catch (NoSuchUserException | PrincipalException e) {
+			throw new NotFoundException(
+				"Unable to get user " + blogsEntry.getUserId(), e);
+		}
+		catch (PortalException pe) {
+			throw new ServerErrorException(500, pe);
+		}
+	}
+
 	@Reference
 	private BlogsEntryService _blogsService;
+
+	@Reference
+	private UserService _userService;
 
 }
