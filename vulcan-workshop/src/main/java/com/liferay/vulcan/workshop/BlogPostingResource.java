@@ -15,13 +15,20 @@
 package com.liferay.vulcan.workshop;
 
 import com.liferay.blogs.kernel.model.BlogsEntry;
+import com.liferay.blogs.kernel.service.BlogsEntryService;
+import com.liferay.vulcan.pagination.PageItems;
+import com.liferay.vulcan.pagination.Pagination;
 import com.liferay.vulcan.resource.CollectionResource;
 import com.liferay.vulcan.resource.Representor;
 import com.liferay.vulcan.resource.Routes;
 import com.liferay.vulcan.resource.builder.RoutesBuilder;
 import com.liferay.vulcan.resource.identifier.LongIdentifier;
+import com.liferay.vulcan.resource.identifier.RootIdentifier;
+
+import java.util.List;
 
 import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Reference;
 
 /**
  * @author Alejandro Hernández
@@ -50,7 +57,24 @@ public class BlogPostingResource
 	public Routes<BlogsEntry> routes(
 		RoutesBuilder<BlogsEntry, LongIdentifier> routesBuilder) {
 
-		return null;
+		return routesBuilder.addCollectionPageGetter(
+			this::_getPageItems, RootIdentifier.class
+		).build();
 	}
+
+	private PageItems<BlogsEntry> _getPageItems(
+		Pagination pagination, RootIdentifier rootIdentifier) {
+
+		List<BlogsEntry> blogsEntries = _blogsService.getGroupEntries(
+			20143, 0, pagination.getStartPosition(),
+			pagination.getEndPosition());
+
+		int count = _blogsService.getGroupEntriesCount(20143, 0);
+
+		return new PageItems<>(blogsEntries, count);
+	}
+
+	@Reference
+	private BlogsEntryService _blogsService;
 
 }
