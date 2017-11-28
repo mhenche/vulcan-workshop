@@ -14,6 +14,7 @@
 
 package com.liferay.vulcan.workshop;
 
+import com.liferay.blogs.kernel.exception.NoSuchEntryException;
 import com.liferay.blogs.kernel.model.BlogsEntry;
 import com.liferay.blogs.kernel.service.BlogsEntryService;
 import com.liferay.portal.kernel.exception.NoSuchUserException;
@@ -91,7 +92,26 @@ public class BlogPostingResource
 
 		return routesBuilder.addCollectionPageGetter(
 			this::_getPageItems, RootIdentifier.class
+		).addCollectionPageItemGetter(
+			this::_getBlogsEntry
 		).build();
+	}
+
+	private BlogsEntry _getBlogsEntry(
+		LongIdentifier blogsEntryIdLongIdentifier) {
+
+		try {
+			return _blogsService.getEntry(blogsEntryIdLongIdentifier.getId());
+		}
+		catch (NoSuchEntryException | PrincipalException e) {
+			throw new NotFoundException(
+				"Unable to get blogs entry " +
+					blogsEntryIdLongIdentifier.getId(),
+				e);
+		}
+		catch (PortalException pe) {
+			throw new ServerErrorException(500, pe);
+		}
 	}
 
 	private PageItems<BlogsEntry> _getPageItems(
